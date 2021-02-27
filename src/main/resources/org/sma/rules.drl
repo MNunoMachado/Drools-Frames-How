@@ -1,0 +1,275 @@
+/*
+ * Copyright 2015 Red Hat, Inc. and/or its affiliates.
+ *
+ * Licensed under the Apache License, Version 2.0 (the "License");
+ * you may not use this file except in compliance with the License.
+ *
+ *      http://www.apache.org/licenses/LICENSE-2.0
+ *
+ * Unless required by applicable law or agreed to in writing, software
+ * distributed under the License is distributed on an "AS IS" BASIS,
+ * WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+ * See the License for the specific language governing permissions and
+ * limitations under the License.
+*/
+
+package org.sma;
+
+import org.sma.model.Evidence;
+import org.sma.model.Hypothesis;
+import org.sma.model.Conclusion;
+import org.sma.model.Observation;
+import org.sma.model.Fact;
+import org.sma.model.entities.FrameSystem;
+
+import function org.sma.view.UI.answer;
+ import function org.sma.view.UI.getFinalWindow;
+
+import  function org.sma.model.CasementOrFixedWindowsSystems.isSystemValid;
+import  function org.sma.model.CasementOrFixedWindowsSystems.defineAccessoriesAndSealant;
+
+
+import  function org.sma.model.SlidingWindowsSystems.isSlidingSystemValid;
+
+query "Conclusions"
+	$conclusion : Conclusion()
+end
+
+rule "r1"
+	when
+		eval(answer(Evidence.CAIXILHARIA_TRADICIONAL, "yes" ))
+  	then
+  		Hypothesis h = new Hypothesis("Sistema de Caixilharia", "tradicional");
+		insert(h);
+end
+
+rule "r2"
+	when
+		eval(answer(Evidence.CAIXILHARIA_TRADICIONAL, "no" ))
+
+	then
+ 		Conclusion c = new Conclusion(Conclusion.NOT_VALID);
+		insert(c);
+end
+
+rule "r3"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "tradicional")
+     		eval(answer(Evidence.CAIXILHARIA_EXTERIOR, "yes" ))
+    	then
+    		Hypothesis h = new Hypothesis("Sistema de Caixilharia", "exterior");
+    		insert(h);
+end
+
+rule "r4"
+	when
+			Hypothesis( description == "Sistema de Caixilharia", value == "tradicional")
+     		eval(answer(Evidence.CAIXILHARIA_EXTERIOR, "no" ))
+    	then
+    		Hypothesis h = new Hypothesis("Sistema de Caixilharia", "não exterior");
+    		insert(h);
+end
+
+rule "r5"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "não exterior")
+		eval(answer(Evidence.RESGUARDO, "yes"))
+		eval(answer(Evidence.RESGUARDO_FIXO_BATENTE, "yes"))
+ 	then
+		Conclusion c = new Conclusion(Conclusion.RESGUARDO_FIXO_BATENTE);
+		insert(c);
+end
+
+rule "r6"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "não exterior")
+		eval(answer(Evidence.RESGUARDO, "yes"))
+		eval(answer(Evidence.RESGUARDO_FIXO_BATENTE, "no"))
+	then
+		Conclusion c = new Conclusion(Conclusion.RESGUARDO_CORRER);
+		insert(c);
+end
+
+
+
+//  INTERIOR - BATENTE & FIXA
+rule "r7"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "não exterior")
+		eval(answer(Evidence.RESGUARDO, "no"))
+		eval(answer(Evidence.INT_FIXA_OU_BATENTE, "yes"))
+		eval(isSystemValid(0))
+	then
+	 		Hypothesis h = new Hypothesis(Evidence.FIXA_BATENTE, "yes");
+    		insert(h);
+end
+
+
+
+//  INTERIOR -  CORRER
+rule "r8"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "não exterior")
+		eval(answer(Evidence.RESGUARDO, "no"))
+		eval(answer(Evidence.INT_FIXA_OU_BATENTE, "no"))
+		eval(isSlidingSystemValid(0))
+	then
+	    FrameSystem frameSystem = getFinalWindow();
+ 		Conclusion c = new Conclusion(Conclusion.CORRER,frameSystem);
+		insert(c);
+end
+
+
+
+//  EXTERIOR - BATENTE & FIXA
+rule "r9"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "exterior")
+		eval(answer(Evidence.EXT_FIXA_OU_BATENTE, "yes"))
+		eval(answer(Evidence.ROTURA_TERMICA, "no"))
+		eval(isSystemValid(0))
+ 	then
+	 	Hypothesis h = new Hypothesis(Evidence.FIXA_BATENTE, "yes");
+    	insert(h);
+end
+
+rule "r10"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "exterior")
+		eval(answer(Evidence.EXT_FIXA_OU_BATENTE, "yes"))
+		eval(answer(Evidence.ROTURA_TERMICA, "yes"))
+		eval(answer(Evidence.GAMA_ALTA, "no"))
+		 eval(isSystemValid(1))
+
+ 	then
+	 	Hypothesis h = new Hypothesis(Evidence.FIXA_BATENTE, "yes");
+    	insert(h);
+end
+
+ rule "r11"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "exterior")
+		eval(answer(Evidence.EXT_FIXA_OU_BATENTE, "yes"))
+		eval(answer(Evidence.ROTURA_TERMICA, "yes"))
+		eval(answer(Evidence.GAMA_ALTA, "yes"))
+		 eval(isSystemValid(2))
+ 	then
+	 	Hypothesis h = new Hypothesis(Evidence.FIXA_BATENTE, "yes");
+    	insert(h);
+end
+
+
+rule "r12"
+	when
+		Hypothesis( description == Evidence.FIXA_BATENTE, value == "yes")
+		eval(answer(Evidence.JANELA_FIXA, "yes"))
+
+ 	then
+      	Observation obs = new Observation(Conclusion.JANELA_FIXA);
+     	insert(obs);
+     	FrameSystem frameSystem = getFinalWindow();
+		Conclusion c = new Conclusion(Conclusion.JANELA_FIXA,  frameSystem);
+
+
+		insert(c);
+end
+
+rule "r13"
+	when
+		Hypothesis( description == Evidence.FIXA_BATENTE, value == "yes")
+		eval(answer(Evidence.JANELA_FIXA, "no"))
+		eval(answer(Evidence.JANELA_BATENTE, "yes"))
+  	then
+  	     Observation obs = new Observation(Conclusion.JANELA_BATENTE);
+         insert(obs);
+         FrameSystem frameSystem = getFinalWindow();
+		Conclusion c = new Conclusion(Conclusion.JANELA_BATENTE,  frameSystem);
+ 		insert(c);
+end
+
+rule "r14"
+	when
+		Hypothesis( description == Evidence.FIXA_BATENTE, value == "yes")
+		eval(answer(Evidence.JANELA_FIXA, "no"))
+		eval(answer(Evidence.JANELA_BATENTE, "no"))
+
+ 	then
+ 	    Observation obs = new Observation(Conclusion.PORTA_BATENTE);
+        insert(obs);
+        FrameSystem frameSystem = getFinalWindow();
+ 		Conclusion c = new Conclusion(Conclusion.PORTA_BATENTE,  frameSystem);
+ 		insert(c);
+end
+
+
+
+//  EXTERIOR - CORRER
+
+rule "r15"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "exterior")
+		eval(answer(Evidence.EXT_FIXA_OU_BATENTE, "no"))
+		eval(answer(Evidence.AUTOMATISMO, "yes"))
+		 eval(isSlidingSystemValid(2))
+
+	then
+		FrameSystem frameSystem = getFinalWindow();
+		Conclusion c = new Conclusion(Conclusion.CORRER,frameSystem);
+		insert(c);
+end
+
+rule "r16"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "exterior")
+		eval(answer(Evidence.EXT_FIXA_OU_BATENTE, "no"))
+		eval(answer(Evidence.AUTOMATISMO, "no"))
+		eval(answer(Evidence.ROTURA_TERMICA, "no"))
+		 eval(isSlidingSystemValid(0))
+	then
+		FrameSystem frameSystem = getFinalWindow();
+		Conclusion c = new Conclusion(Conclusion.CORRER,frameSystem);
+		insert(c);
+end
+
+
+rule "r17"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "exterior")
+		eval(answer(Evidence.EXT_FIXA_OU_BATENTE, "no"))
+		eval(answer(Evidence.AUTOMATISMO, "no"))
+		eval(answer(Evidence.ROTURA_TERMICA, "yes"))
+		eval(answer(Evidence.GAMA_ALTA, "no"))
+		eval(isSlidingSystemValid(1))
+	then
+		FrameSystem frameSystem = getFinalWindow();
+		Conclusion c = new Conclusion(Conclusion.CORRER,frameSystem);
+		insert(c);
+end
+
+rule "r18"
+	when
+		Hypothesis( description == "Sistema de Caixilharia", value == "exterior")
+		eval(answer(Evidence.EXT_FIXA_OU_BATENTE, "no"))
+		eval(answer(Evidence.AUTOMATISMO, "no"))
+		eval(answer(Evidence.ROTURA_TERMICA, "yes"))
+		eval(answer(Evidence.GAMA_ALTA, "yes"))
+		eval(isSlidingSystemValid(2))
+	then
+		FrameSystem frameSystem = getFinalWindow();
+		Conclusion c = new Conclusion(Conclusion.CORRER,frameSystem);
+		insert(c);
+end
+
+
+rule "NOT VALID"
+	when
+		not Conclusion()
+	then
+ 		Conclusion c = new Conclusion(Conclusion.NOT_VALID);
+		insert(c);
+end
+
+query "evidence"(String ev, String v)
+	e : Evidence( evidence == ev, value == v )
+end
+
